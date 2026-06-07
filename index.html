@@ -1,0 +1,774 @@
+import React, { useState, useEffect } from 'react';
+
+// --- 1. CONFIGURAÇÕES GLOBAIS E ESTILOS ---
+const FONT_URL = "https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap";
+const ICONS_URL = "https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css";
+
+const globalCss = `
+  @import url('${FONT_URL}');
+  @import url('${ICONS_URL}');
+
+  * { box-sizing: border-box; font-family: 'Outfit', sans-serif; margin: 0; padding: 0; }
+  body { background-color: #f5f5f2; color: #1a1a1a; overflow-x: hidden; }
+  
+  /* Utilities & Buttons */
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 500; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; }
+  .btn-primary { background-color: #1D9E75; color: white; }
+  .btn-primary:hover { background-color: #158360; }
+  .btn-outline { background-color: transparent; border: 1px solid #1D9E75; color: #1D9E75; }
+  .btn-outline:hover { background-color: rgba(29, 158, 117, 0.1); }
+  .btn-dark { background-color: #07100e; color: white; }
+  
+  /* Forms */
+  .input-group { margin-bottom: 16px; text-align: left; }
+  .input-group label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 500; color: #555; }
+  .input-group input, .input-group select { width: 100%; padding: 10px 14px; border: 1px solid #e8e8e0; border-radius: 8px; font-size: 14px; background: white; outline: none; transition: border-color 0.2s;}
+  .input-group input:focus, .input-group select:focus { border-color: #1D9E75; }
+  
+  /* Cards */
+  .card { background: white; border: 0.5px solid #e8e8e0; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+  
+  /* Specific Views */
+  .dark-theme { background-color: #07100e; color: white; min-height: 100vh; }
+  .hero { text-align: center; padding: 80px 20px; max-width: 800px; margin: 0 auto; }
+  .hero h1 { font-size: 48px; line-height: 1.1; margin-bottom: 20px; }
+  .hero h1 span { color: #1D9E75; }
+  
+  .grid-pricing { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1000px; margin: 40px auto; padding: 0 20px;}
+  .pricing-card { position: relative; }
+  .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #1D9E75; color: white; font-size: 12px; padding: 4px 12px; border-radius: 20px; font-weight: 600; }
+  
+  /* App Layout */
+  .app-layout { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar { width: 196px; background: white; border-right: 1px solid #e8e8e0; display: flex; flex-direction: column; padding: 20px 0; z-index: 10; }
+  .sidebar-item { padding: 10px 20px; margin: 4px 12px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 14px; color: #555; transition: 0.2s;}
+  .sidebar-item:hover, .sidebar-item.active { background: #f0f7f4; color: #1D9E75; font-weight: 500; }
+  .main-content { flex: 1; overflow-y: auto; padding: 32px; }
+  
+  /* Roster Table */
+  .roster-wrapper { overflow-x: auto; background: white; border: 1px solid #e8e8e0; border-radius: 12px; }
+  .roster-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: center; }
+  .roster-table th, .roster-table td { border: 1px solid #e8e8e0; padding: 8px; min-width: 40px; height: 48px; }
+  .roster-table th { background: #fafafa; position: sticky; top: 0; font-weight: 500;}
+  .roster-table td.cell-shift { cursor: pointer; transition: 0.1s; font-weight: 600; border-radius: 4px; margin: 2px; }
+  .shift-M { background-color: #d1fae5; color: #065f46; } /* Verde */
+  .shift-T { background-color: #dbeafe; color: #1e40af; } /* Azul */
+  .shift-N { background-color: #ffedd5; color: #c2410c; } /* Laranja */
+  .shift-F { background-color: #f3f4f6; color: #4b5563; } /* Cinza */
+  .shift-V { background-color: #fce7f3; color: #9d174d; } /* Rosa */
+  
+  /* Modals */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(2px); }
+  .modal-content { background: white; padding: 32px; border-radius: 16px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;}
+  
+  /* Rules Builder */
+  .rule-builder { background: #fafafa; border: 1px dashed #ccc; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+  
+  /* Utility */
+  .flex { display: flex; } .justify-between { justify-content: space-between; } .align-center { align-items: center; } .gap-2 { gap: 8px; } .gap-4 { gap: 16px; }
+  .text-green { color: #1D9E75; } .text-sm { font-size: 13px; color: #666;}
+`;
+
+// --- 2. DICIONÁRIO DE TRADUÇÕES (i18n) ---
+const translations = {
+  pt: { // Used as internal base if needed, but requested EN, FR, DE, IT. (Assuming user wants PT as fallback or FR as main based on EHPAD). Let's do FR, EN, DE, IT.
+  },
+  fr: {
+    start_free: "Commencer gratuitement", view_demo: "Voir la démo", login: "Connexion",
+    hero_title: "La planification du personnel de santé, ", hero_title_span: "automatisée.",
+    hero_subtitle: "PlanniCare génère des plannings sans conflits pour les EHPAD, cliniques et établissements de santé en quelques secondes grâce à l'IA.",
+    monthly: "Mensuel", annual: "Annuel (20% de réduction)", pricing: "Tarifs",
+    plan_starter: "Débutant", plan_pro: "Professionnel", plan_enterprise: "Établissement",
+    choose_plan: "Choisir ce plan", most_popular: "Plus populaire",
+    step1: "1. Établissement", step2: "2. Compte", step3: "3. Paiement",
+    facility_name: "Nom de l'établissement", phone: "Téléphone", country: "Pays",
+    firstname: "Prénom", lastname: "Nom", email: "Email pro", password: "Mot de passe",
+    card_number: "Numéro de carte", confirm: "Confirmer et Payer", processing: "Traitement...",
+    success: "Plateforme créée avec succès !",
+    dns_instructions: "Pour héberger gratuitement sur Vercel/Netlify, ajoutez un CNAME :",
+    access_platform: "Accéder à ma plateforme",
+    demo_roles: "Démo rapide :", director: "Directeur", manager: "Chef d'équipe", agent: "Agent",
+    dashboard: "Tableau de bord", roster: "Planning mensuel", requests: "Demandes",
+    groups: "Groupes", shifts: "Horaires", holidays: "Congés", rules: "Règles",
+    generate: "Générer", ai_suggestions: "Suggestions IA", staff: "Collaborateurs",
+    add_staff: "Ajouter un collaborateur", role: "Fonction", contract: "Contrat (%)",
+    rule_type: "Type de règle", applies_to: "S'applique à", condition: "Condition", action: "Action en cas de violation",
+    save_rule: "Enregistrer la règle", generating: "Génération en cours...",
+    approve: "Approuver", reject: "Refuser",
+    morning: "Matin", afternoon: "Après-midi", night: "Nuit", off: "Repos", vacation: "Congés"
+  },
+  en: {
+    start_free: "Start for free", view_demo: "View Demo", login: "Login",
+    hero_title: "Healthcare staff scheduling, ", hero_title_span: "automated.",
+    hero_subtitle: "PlanniCare generates conflict-free schedules for care homes, clinics, and health facilities in seconds using AI.",
+    monthly: "Monthly", annual: "Annual (20% off)", pricing: "Pricing",
+    plan_starter: "Starter", plan_pro: "Professional", plan_enterprise: "Facility",
+    choose_plan: "Choose Plan", most_popular: "Most Popular",
+    step1: "1. Facility", step2: "2. Account", step3: "3. Payment",
+    facility_name: "Facility Name", phone: "Phone", country: "Country",
+    firstname: "First Name", lastname: "Last Name", email: "Work Email", password: "Password",
+    card_number: "Card Number", confirm: "Confirm & Pay", processing: "Processing...",
+    success: "Platform successfully created!",
+    dns_instructions: "To host for free on Vercel/Netlify, add a CNAME:",
+    access_platform: "Access my platform",
+    demo_roles: "Quick Demo:", director: "Director", manager: "Team Lead", agent: "Agent",
+    dashboard: "Dashboard", roster: "Monthly Roster", requests: "Requests",
+    groups: "Groups", shifts: "Shifts & Breaks", holidays: "Holidays", rules: "Rules",
+    generate: "Generate", ai_suggestions: "AI Suggestions", staff: "Staff",
+    add_staff: "Add Staff", role: "Role", contract: "Contract (%)",
+    rule_type: "Rule Type", applies_to: "Applies to", condition: "Condition", action: "Action if violated",
+    save_rule: "Save Rule", generating: "Generating...",
+    approve: "Approve", reject: "Reject",
+    morning: "Morning", afternoon: "Afternoon", night: "Night", off: "Day Off", vacation: "Vacation"
+  },
+  de: {
+    start_free: "Kostenlos starten", view_demo: "Demo ansehen", login: "Anmelden",
+    hero_title: "Personaleinsatzplanung im Gesundheitswesen, ", hero_title_span: "automatisiert.",
+    hero_subtitle: "PlanniCare erstellt mit KI in Sekundenschnelle konfliktfreie Dienstpläne für Pflegeheime und Kliniken.",
+    monthly: "Monatlich", annual: "Jährlich (20% Rabatt)", pricing: "Preise",
+    plan_starter: "Starter", plan_pro: "Professionell", plan_enterprise: "Einrichtung",
+    choose_plan: "Plan wählen", most_popular: "Am beliebtesten",
+    step1: "1. Einrichtung", step2: "2. Konto", step3: "3. Zahlung",
+    facility_name: "Name der Einrichtung", phone: "Telefon", country: "Land",
+    firstname: "Vorname", lastname: "Nachname", email: "Arbeits-E-Mail", password: "Passwort",
+    card_number: "Kartennummer", confirm: "Bestätigen & Bezahlen", processing: "Wird bearbeitet...",
+    success: "Plattform erfolgreich erstellt!",
+    dns_instructions: "Für kostenloses Hosting auf Vercel/Netlify, CNAME hinzufügen:",
+    access_platform: "Zur Plattform",
+    demo_roles: "Schnell-Demo:", director: "Direktor", manager: "Teamleiter", agent: "Mitarbeiter",
+    dashboard: "Dashboard", roster: "Dienstplan", requests: "Anfragen",
+    groups: "Gruppen", shifts: "Schichten", holidays: "Urlaub", rules: "Regeln",
+    generate: "Generieren", ai_suggestions: "KI-Vorschläge", staff: "Mitarbeiter",
+    add_staff: "Mitarbeiter hinzufügen", role: "Rolle", contract: "Vertrag (%)",
+    rule_type: "Regeltyp", applies_to: "Gilt für", condition: "Bedingung", action: "Aktion bei Verstoß",
+    save_rule: "Regel speichern", generating: "Wird generiert...",
+    approve: "Genehmigen", reject: "Ablehnen",
+    morning: "Morgen", afternoon: "Nachmittag", night: "Nacht", off: "Frei", vacation: "Urlaub"
+  },
+  it: {
+    start_free: "Inizia gratis", view_demo: "Guarda la demo", login: "Accedi",
+    hero_title: "La pianificazione del personale sanitario, ", hero_title_span: "automatizzata.",
+    hero_subtitle: "PlanniCare genera turni senza conflitti per cliniche e RSA in pochi secondi grazie all'IA.",
+    monthly: "Mensile", annual: "Annuale (sconto 20%)", pricing: "Prezzi",
+    plan_starter: "Iniziale", plan_pro: "Professionale", plan_enterprise: "Struttura",
+    choose_plan: "Scegli il piano", most_popular: "Più popolare",
+    step1: "1. Struttura", step2: "2. Account", step3: "3. Pagamento",
+    facility_name: "Nome struttura", phone: "Telefono", country: "Paese",
+    firstname: "Nome", lastname: "Cognome", email: "Email di lavoro", password: "Password",
+    card_number: "Numero di carta", confirm: "Conferma e Paga", processing: "Elaborazione...",
+    success: "Piattaforma creata con successo!",
+    dns_instructions: "Per ospitare gratuitamente su Vercel/Netlify, aggiungi un CNAME:",
+    access_platform: "Accedi alla piattaforma",
+    demo_roles: "Demo rapida:", director: "Direttore", manager: "Caposquadra", agent: "Agente",
+    dashboard: "Dashboard", roster: "Turni Mensili", requests: "Richieste",
+    groups: "Gruppi", shifts: "Turni", holidays: "Ferie", rules: "Regole",
+    generate: "Genera", ai_suggestions: "Suggerimenti IA", staff: "Personale",
+    add_staff: "Aggiungi personale", role: "Ruolo", contract: "Contratto (%)",
+    rule_type: "Tipo di regola", applies_to: "Si applica a", condition: "Condizione", action: "Azione se violata",
+    save_rule: "Salva regola", generating: "Generazione...",
+    approve: "Approva", reject: "Rifiuta",
+    morning: "Mattino", afternoon: "Pomeriggio", night: "Notte", off: "Riposo", vacation: "Ferie"
+  }
+};
+
+// --- 3. DADOS MOCK INICIAIS ---
+const initialStaff = [
+  { id: 1, firstName: "Marie", lastName: "Curie", role: "Enfermeira", group: "Enfermeiros", contract: 100, color: "#1D9E75" },
+  { id: 2, firstName: "Louis", lastName: "Pasteur", role: "Médico", group: "Médicos", contract: 80, color: "#2563eb" },
+  { id: 3, firstName: "Florence", lastName: "Nightingale", role: "Auxiliar", group: "Auxiliares", contract: 50, color: "#d97706" },
+  { id: 4, firstName: "Clara", lastName: "Barton", role: "Enfermeira", group: "Enfermeiros", contract: 100, color: "#9333ea" },
+];
+
+const generateEmptyRoster = () => {
+  let roster = {};
+  initialStaff.forEach(staff => {
+    roster[staff.id] = Array(28).fill('F');
+    // Randomize slightly for the demo
+    for(let i=0; i<28; i++) {
+       if(staff.contract === 50 && i % 2 === 0) continue;
+       const shifts = ['M', 'T', 'N', 'F', 'F'];
+       roster[staff.id][i] = shifts[Math.floor(Math.random() * shifts.length)];
+    }
+  });
+  return roster;
+};
+
+// --- COMPONENTE PRINCIPAL ---
+export default function PlanniCareApp() {
+  // Estado Global
+  const [lang, setLang] = useState('fr');
+  const [route, setRoute] = useState('landing'); // landing, pricing, signup, success, login, app
+  const [tenant, setTenant] = useState('');
+  const [userRole, setUserRole] = useState('Director'); // Director, Manager, Agent
+  
+  // Estado da App
+  const [appView, setAppView] = useState('dashboard');
+  const [staff, setStaff] = useState(initialStaff);
+  const [roster, setRoster] = useState(generateEmptyRoster());
+  const [rules, setRules] = useState([
+    { id: 1, desc: "Descanso mínimo 11h entre turnos", active: true, type: 'system' },
+    { id: 2, desc: "Máximo 5 dias consecutivos", active: true, type: 'system' },
+    { id: 3, desc: "Máximo 2 noturnas consecutivas", active: true, type: 'system' },
+  ]);
+
+  // Função utilitária i18n
+  const t = (key) => translations[lang][key] || translations['en'][key] || key;
+
+  // Deteção de idioma inicial
+  useEffect(() => {
+    const browserLang = navigator.language.substring(0, 2);
+    if (translations[browserLang]) setLang(browserLang);
+  }, []);
+
+  // Adiciona os estilos CSS ao head
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = globalCss;
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
+
+  // Componentes de Header (Público)
+  const PublicHeader = () => (
+    <header style={{ display: 'flex', justifyContent: 'space-between', padding: '20px 40px', alignItems: 'center' }}>
+      <div style={{ fontSize: '24px', fontWeight: '700', cursor: 'pointer' }} onClick={() => setRoute('landing')}>
+        <i className="ti ti-calendar-plus text-green"></i> PlanniCare
+      </div>
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+        <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ background: 'transparent', border: 'none', color: route === 'landing' ? 'white' : 'black', cursor: 'pointer', outline: 'none' }}>
+          <option value="fr">FR</option><option value="en">EN</option><option value="de">DE</option><option value="it">IT</option>
+        </select>
+        <button className="btn btn-outline" onClick={() => setRoute('login')}>{t('login')}</button>
+        <button className="btn btn-primary" onClick={() => setRoute('pricing')}>{t('start_free')}</button>
+      </div>
+    </header>
+  );
+
+  // --- ECRÃS ---
+
+  // 1. Landing Page
+  const LandingPage = () => (
+    <div className="dark-theme">
+      <PublicHeader />
+      <div className="hero">
+        <h1>{t('hero_title')}<span>{t('hero_title_span')}</span></h1>
+        <p style={{ fontSize: '18px', color: '#a0a0a0', marginBottom: '40px' }}>{t('hero_subtitle')}</p>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+          <button className="btn btn-primary" onClick={() => setRoute('pricing')} style={{ fontSize: '16px', padding: '12px 24px' }}>{t('start_free')}</button>
+          <button className="btn" style={{ backgroundColor: '#2a2a2a', color: 'white', fontSize: '16px', padding: '12px 24px' }}><i className="ti ti-player-play"></i> {t('view_demo')}</button>
+        </div>
+        <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', marginTop: '60px', color: '#888', fontSize: '14px' }}>
+          <span><i className="ti ti-brain text-green"></i> IA Integrada</span>
+          <span><i className="ti ti-settings text-green"></i> Regras Customizadas</span>
+          <span><i className="ti ti-language text-green"></i> 4 Línguas</span>
+          <span><i className="ti ti-cloud text-green"></i> Subdomínio Privado</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // 2. Pricing Page
+  const PricingPage = () => {
+    const [annual, setAnnual] = useState(true);
+    return (
+      <div style={{ minHeight: '100vh', background: '#f5f5f2' }}>
+        <PublicHeader />
+        <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <h2 style={{ fontSize: '32px', marginBottom: '20px' }}>{t('pricing')}</h2>
+          <div style={{ display: 'inline-flex', background: '#e8e8e0', padding: '4px', borderRadius: '8px', marginBottom: '40px' }}>
+            <button className="btn" style={{ background: !annual ? 'white' : 'transparent', color: 'black' }} onClick={() => setAnnual(false)}>{t('monthly')}</button>
+            <button className="btn" style={{ background: annual ? 'white' : 'transparent', color: 'black' }} onClick={() => setAnnual(true)}>{t('annual')}</button>
+          </div>
+          <div className="grid-pricing">
+            {/* Starter */}
+            <div className="card pricing-card">
+              <h3>{t('plan_starter')}</h3>
+              <div style={{ fontSize: '36px', fontWeight: '700', margin: '20px 0' }}>€{annual ? '29' : '36'} <span style={{ fontSize: '14px', fontWeight: '400', color: '#666' }}>/mo</span></div>
+              <p className="text-sm">Até 15 agentes</p>
+              <button className="btn btn-outline" style={{ width: '100%', justifyContent: 'center', marginTop: '20px' }} onClick={() => setRoute('signup')}>{t('choose_plan')}</button>
+            </div>
+            {/* Pro */}
+            <div className="card pricing-card" style={{ border: '2px solid #1D9E75' }}>
+              <div className="popular-badge">{t('most_popular')}</div>
+              <h3>{t('plan_pro')}</h3>
+              <div style={{ fontSize: '36px', fontWeight: '700', margin: '20px 0' }}>€{annual ? '59' : '74'} <span style={{ fontSize: '14px', fontWeight: '400', color: '#666' }}>/mo</span></div>
+              <p className="text-sm">Até 50 agentes</p>
+              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginTop: '20px' }} onClick={() => setRoute('signup')}>{t('choose_plan')}</button>
+            </div>
+            {/* Enterprise */}
+            <div className="card pricing-card">
+              <h3>{t('plan_enterprise')}</h3>
+              <div style={{ fontSize: '36px', fontWeight: '700', margin: '20px 0' }}>€{annual ? '99' : '124'} <span style={{ fontSize: '14px', fontWeight: '400', color: '#666' }}>/mo</span></div>
+              <p className="text-sm">Ilimitado</p>
+              <button className="btn btn-outline" style={{ width: '100%', justifyContent: 'center', marginTop: '20px' }} onClick={() => setRoute('signup')}>{t('choose_plan')}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // 3. Signup Flow
+  const SignupPage = () => {
+    const [step, setStep] = useState(1);
+    const [localTenant, setLocalTenant] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleNameChange = (e) => {
+      const val = e.target.value;
+      setLocalTenant(val.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-'));
+    };
+
+    const finishSignup = () => {
+      setLoading(true);
+      setTenant(localTenant || 'demo-ehpad');
+      setTimeout(() => { setLoading(false); setRoute('success'); }, 1500);
+    };
+
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div className="card" style={{ width: '100%', maxWidth: '500px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', fontSize: '14px', color: '#888' }}>
+            <span style={{ color: step === 1 ? '#1D9E75' : '' }}>{t('step1')}</span>
+            <span style={{ color: step === 2 ? '#1D9E75' : '' }}>{t('step2')}</span>
+            <span style={{ color: step === 3 ? '#1D9E75' : '' }}>{t('step3')}</span>
+          </div>
+
+          {step === 1 && (
+            <div>
+              <div className="input-group">
+                <label>{t('facility_name')}</label>
+                <input type="text" onChange={handleNameChange} placeholder="Ex: EHPAD Les Oliviers" />
+              </div>
+              <p className="text-sm" style={{ marginBottom: '16px' }}>Subdomínio: <strong>{localTenant || '...'}</strong>.plannicare.app</p>
+              <div className="input-group">
+                <label>{t('country')}</label>
+                <select><option>France</option><option>Suisse</option><option>Belgique</option></select>
+              </div>
+              <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setStep(2)}>Continuar</button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div className="input-group" style={{ flex: 1 }}><label>{t('firstname')}</label><input type="text" /></div>
+                <div className="input-group" style={{ flex: 1 }}><label>{t('lastname')}</label><input type="text" /></div>
+              </div>
+              <div className="input-group"><label>{t('email')}</label><input type="email" /></div>
+              <div className="input-group"><label>{t('password')}</label><input type="password" /></div>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="btn btn-outline" onClick={() => setStep(1)}>Voltar</button>
+                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={() => setStep(3)}>Continuar</button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div>
+              <div className="input-group"><label>{t('card_number')}</label><input type="text" placeholder="0000 0000 0000 0000" /></div>
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div className="input-group" style={{ flex: 1 }}><label>MM/YY</label><input type="text" /></div>
+                <div className="input-group" style={{ flex: 1 }}><label>CVV</label><input type="text" /></div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button className="btn btn-outline" onClick={() => setStep(2)}>Voltar</button>
+                <button className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={finishSignup} disabled={loading}>
+                  {loading ? t('processing') : t('confirm')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // 4. Success Page
+  const SuccessPage = () => (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '600px', padding: '40px' }}>
+        <i className="ti ti-circle-check text-green" style={{ fontSize: '64px', marginBottom: '20px' }}></i>
+        <h2>{t('success')}</h2>
+        <p style={{ margin: '20px 0', fontSize: '18px' }}><strong>{tenant}.plannicare.app</strong></p>
+        
+        <div style={{ background: '#f8f9fa', padding: '20px', borderRadius: '8px', textAlign: 'left', marginBottom: '30px' }}>
+          <p className="text-sm" style={{ marginBottom: '10px' }}><i className="ti ti-server"></i> {t('dns_instructions')}</p>
+          <code style={{ display: 'block', background: '#e9ecef', padding: '10px', borderRadius: '4px', marginBottom: '10px' }}>
+            CNAME {tenant}.plannicare.app &rarr; cname.vercel-dns.com
+          </code>
+          <code style={{ display: 'block', background: '#e9ecef', padding: '10px', borderRadius: '4px' }}>
+            ENV: REACT_APP_TENANT={tenant}
+          </code>
+        </div>
+        
+        <button className="btn btn-primary" onClick={() => setRoute('login')}>{t('access_platform')}</button>
+      </div>
+    </div>
+  );
+
+  // 5. Login Page
+  const LoginPage = () => (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f2' }}>
+      <div className="card" style={{ width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+        <div style={{ color: '#1D9E75', marginBottom: '10px' }}><i className="ti ti-calendar-plus" style={{ fontSize: '32px' }}></i></div>
+        <h3 style={{ marginBottom: '4px' }}>PlanniCare</h3>
+        <p className="text-sm" style={{ marginBottom: '24px' }}>{tenant ? `${tenant}.plannicare.app` : 'demo.plannicare.app'}</p>
+        
+        <div className="input-group"><input type="email" placeholder={t('email')} /></div>
+        <div className="input-group"><input type="password" placeholder={t('password')} /></div>
+        <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', marginBottom: '24px' }} onClick={() => setRoute('app')}>{t('login')}</button>
+        
+        <div style={{ borderTop: '1px solid #e8e8e0', paddingTop: '20px' }}>
+          <p className="text-sm" style={{ marginBottom: '10px' }}>{t('demo_roles')}</p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => { setUserRole('Director'); setRoute('app'); }}>{t('director')}</button>
+            <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => { setUserRole('Manager'); setRoute('app'); }}>{t('manager')}</button>
+            <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => { setUserRole('Agent'); setRoute('app'); }}>{t('agent')}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // --- APP INTERNA (PAINÉIS) ---
+
+  // Roster View
+  const RosterView = () => {
+    const cycleShift = (staffId, dayIndex) => {
+      if (userRole === 'Agent') return;
+      const shifts = ['M', 'T', 'N', 'F', 'V'];
+      setRoster(prev => {
+        const newRoster = {...prev};
+        const current = newRoster[staffId][dayIndex];
+        const nextIndex = (shifts.indexOf(current) + 1) % shifts.length;
+        newRoster[staffId][dayIndex] = shifts[nextIndex];
+        return newRoster;
+      });
+    };
+
+    return (
+      <div>
+        <div className="flex justify-between align-center" style={{ marginBottom: '24px' }}>
+          <h2>{t('roster')}</h2>
+          <div className="flex gap-2">
+            <span className="shift-M" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{t('morning')}</span>
+            <span className="shift-T" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{t('afternoon')}</span>
+            <span className="shift-N" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{t('night')}</span>
+            <span className="shift-F" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{t('off')}</span>
+            <span className="shift-V" style={{ padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>{t('vacation')}</span>
+          </div>
+        </div>
+        <div className="roster-wrapper">
+          <table className="roster-table">
+            <thead>
+              <tr>
+                <th style={{ minWidth: '150px', textAlign: 'left' }}>{t('staff')}</th>
+                {Array.from({length: 28}).map((_, i) => <th key={i}>{i+1}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {staff.map(s => (
+                <tr key={s.id}>
+                  <td style={{ textAlign: 'left', fontWeight: '500' }}>
+                    <div className="flex align-center gap-2">
+                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: s.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px' }}>
+                        {s.firstName[0]}{s.lastName[0]}
+                      </div>
+                      {s.firstName} {s.lastName[0]}.
+                    </div>
+                  </td>
+                  {roster[s.id].map((shift, i) => (
+                    <td key={i} className={`cell-shift shift-${shift}`} onClick={() => cycleShift(s.id, i)}>
+                      {shift}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // Rules Builder View
+  const RulesView = () => {
+    const [ruleType, setRuleType] = useState('Máximo de noturnas');
+    const [appliesTo, setAppliesTo] = useState('Todos os colaboradores');
+    const [condition, setCondition] = useState('<=');
+    const [val, setVal] = useState('2');
+    const [action, setAction] = useState('Bloqueio automático');
+
+    const addRule = () => {
+      const desc = `${appliesTo} — ${ruleType} ${condition} ${val} → ${action}`;
+      setRules([...rules, { id: Date.now(), desc, active: true, type: 'custom' }]);
+    };
+
+    return (
+      <div>
+        <h2 style={{ marginBottom: '24px' }}>{t('rules')}</h2>
+        
+        {userRole === 'Director' && (
+          <div className="rule-builder">
+            <h4 style={{ marginBottom: '16px' }}>Adicionar Regra Personalizada</h4>
+            <div className="flex gap-4" style={{ flexWrap: 'wrap' }}>
+              <div className="input-group" style={{ flex: '1 1 200px' }}>
+                <label>{t('rule_type')}</label>
+                <select value={ruleType} onChange={e=>setRuleType(e.target.value)}>
+                  <option>Máximo de noturnas</option>
+                  <option>Dias consecutivos</option>
+                  <option>Equidade fins de semana</option>
+                </select>
+              </div>
+              <div className="input-group" style={{ flex: '1 1 200px' }}>
+                <label>{t('applies_to')}</label>
+                <select value={appliesTo} onChange={e=>setAppliesTo(e.target.value)}>
+                  <option>Todos os colaboradores</option>
+                  <option>Grupo: Enfermeiros</option>
+                </select>
+              </div>
+              <div className="input-group" style={{ width: '80px' }}>
+                <label>{t('condition')}</label>
+                <select value={condition} onChange={e=>setCondition(e.target.value)}><option>&lt;=</option><option>&gt;=</option><option>=</option></select>
+              </div>
+              <div className="input-group" style={{ width: '80px' }}>
+                <label>Valor</label>
+                <input type="text" value={val} onChange={e=>setVal(e.target.value)} />
+              </div>
+              <div className="input-group" style={{ flex: '1 1 200px' }}>
+                <label>{t('action')}</label>
+                <select value={action} onChange={e=>setAction(e.target.value)}>
+                  <option>Bloqueio automático</option>
+                  <option>Alerta + Sugestão IA</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-between align-center" style={{ marginTop: '10px' }}>
+              <p className="text-sm" style={{ fontStyle: 'italic' }}>Preview: {appliesTo} — {ruleType} {condition} {val} → {action}</p>
+              <button className="btn btn-primary" onClick={addRule}>{t('save_rule')}</button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-4" style={{ flexDirection: 'column' }}>
+          {rules.map(r => (
+            <div key={r.id} className="card flex justify-between align-center" style={{ padding: '16px' }}>
+              <div className="flex align-center gap-4">
+                <input type="checkbox" checked={r.active} onChange={() => {}} style={{ cursor: 'pointer' }}/>
+                <span style={{ fontWeight: '500' }}>{r.desc}</span>
+                {r.type === 'system' && <span style={{ fontSize: '10px', background: '#e8e8e0', padding: '2px 6px', borderRadius: '4px' }}>Sistema</span>}
+              </div>
+              <button className="btn" style={{ color: 'red', background: 'transparent' }}><i className="ti ti-trash"></i></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Generate View
+  const GenerateView = () => {
+    const [generating, setGenerating] = useState(false);
+    const [progress, setProgress] = useState(0);
+
+    const handleGenerate = () => {
+      setGenerating(true);
+      setProgress(0);
+      const interval = setInterval(() => {
+        setProgress(p => {
+          if (p >= 100) {
+            clearInterval(interval);
+            setTimeout(() => { setGenerating(false); setAppView('roster'); }, 500);
+            return 100;
+          }
+          return p + 20;
+        });
+      }, 400);
+    };
+
+    return (
+      <div style={{ maxWidth: '600px', margin: '0 auto', textAlign: 'center', paddingTop: '40px' }}>
+        <h2>Geração Automática (IA)</h2>
+        <p className="text-sm" style={{ margin: '16px 0 32px' }}>O motor de IA vai gerar a escala respeitando as {rules.filter(r=>r.active).length} regras ativas.</p>
+        
+        {!generating ? (
+          <button className="btn btn-primary" style={{ fontSize: '18px', padding: '16px 32px' }} onClick={handleGenerate}>
+            <i className="ti ti-wand"></i> {t('generate')} Escala
+          </button>
+        ) : (
+          <div>
+            <div style={{ width: '100%', height: '8px', background: '#e8e8e0', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{ width: `${progress}%`, height: '100%', background: '#1D9E75', transition: 'width 0.4s ease' }}></div>
+            </div>
+            <p style={{ fontWeight: '500', color: '#1D9E75' }}>
+              {progress < 30 ? "A verificar disponibilidades..." : progress < 60 ? "A aplicar regras e restrições..." : progress < 90 ? "A otimizar rotações..." : "Concluído!"}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Requests View (Trocas)
+  const RequestsView = () => {
+    const [modalOpen, setModalOpen] = useState(false);
+
+    return (
+      <div>
+        <h2 style={{ marginBottom: '24px' }}>{t('requests')}</h2>
+        <div className="card flex justify-between align-center" style={{ marginBottom: '16px' }}>
+          <div>
+            <h4 style={{ marginBottom: '4px' }}>Louis Pasteur — Pedido de Troca</h4>
+            <p className="text-sm">Pretende trocar o turno N (Dia 12) por motivo pessoal.</p>
+          </div>
+          <div className="flex gap-2">
+            <button className="btn" style={{ background: '#fce7f3', color: '#9d174d' }}>{t('reject')}</button>
+            <button className="btn btn-primary">{t('approve')}</button>
+            <button className="btn btn-dark" onClick={() => setModalOpen(true)}><i className="ti ti-brain"></i> {t('ai_suggestions')}</button>
+          </div>
+        </div>
+
+        {modalOpen && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <h3>Sugestões da IA</h3>
+              <p className="text-sm" style={{ marginBottom: '24px' }}>Analisámos a escala e encontrámos 2 soluções sem conflitos.</p>
+              
+              <div className="card" style={{ marginBottom: '16px', background: '#f0f7f4', borderColor: '#1D9E75' }}>
+                <h5>Sugestão 1: Trocar com Marie Curie</h5>
+                <p className="text-sm" style={{ margin: '8px 0' }}>Impacto: 0 conflitos criados. Quota de horas preservada para ambos.</p>
+                <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>Aplicar Sugestão 1</button>
+              </div>
+
+              <div className="card">
+                <h5>Sugestão 2: Chamar Auxiliar de piquete</h5>
+                <p className="text-sm" style={{ margin: '8px 0' }}>Impacto: Aumenta custos extra em 10% no dia 12.</p>
+                <button className="btn btn-outline" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setModalOpen(false)}>Aplicar Sugestão 2</button>
+              </div>
+              
+              <button className="btn" style={{ width: '100%', justifyContent: 'center', marginTop: '16px' }} onClick={() => setModalOpen(false)}>Cancelar</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Staff View
+  const StaffView = () => (
+    <div>
+      <div className="flex justify-between align-center" style={{ marginBottom: '24px' }}>
+        <h2>{t('staff')}</h2>
+        {userRole === 'Director' && <button className="btn btn-primary"><i className="ti ti-plus"></i> {t('add_staff')}</button>}
+      </div>
+      <div className="grid-pricing" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', padding: 0, margin: 0, maxWidth: '100%' }}>
+        {staff.map(s => {
+          const targetHours = (s.contract / 100) * 160;
+          return (
+            <div key={s.id} className="card">
+              <div className="flex align-center gap-4" style={{ marginBottom: '16px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: s.color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '600' }}>
+                  {s.firstName[0]}{s.lastName[0]}
+                </div>
+                <div>
+                  <h4 style={{ margin: 0 }}>{s.firstName} {s.lastName}</h4>
+                  <p className="text-sm">{s.role} • {s.group}</p>
+                </div>
+              </div>
+              <div>
+                <div className="flex justify-between text-sm" style={{ marginBottom: '4px' }}>
+                  <span>Contrato {s.contract}%</span>
+                  <span>{targetHours}h/mês</span>
+                </div>
+                <div style={{ width: '100%', height: '6px', background: '#e8e8e0', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{ width: `${s.contract}%`, height: '100%', background: s.color }}></div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // App Layout Wrap
+  const AppLayout = () => {
+    const navItems = [
+      { id: 'dashboard', icon: 'ti-layout-dashboard', label: t('dashboard') },
+      { id: 'roster', icon: 'ti-calendar-stats', label: t('roster') },
+      { id: 'requests', icon: 'ti-arrows-exchange', label: t('requests') },
+      { id: 'rules', icon: 'ti-adjustments-horizontal', label: t('rules') },
+      { id: 'generate', icon: 'ti-wand', label: t('generate') },
+      { id: 'staff', icon: 'ti-users', label: t('staff') },
+    ];
+
+    return (
+      <div className="app-layout">
+        <aside className="sidebar">
+          <div style={{ padding: '0 20px 20px', fontWeight: '700', fontSize: '18px', color: '#1D9E75', borderBottom: '1px solid #e8e8e0', marginBottom: '20px' }}>
+            <i className="ti ti-calendar-plus"></i> PlanniCare
+            <div style={{ fontSize: '11px', color: '#888', fontWeight: '400', marginTop: '4px' }}>{tenant ? `${tenant}` : 'demo'}</div>
+          </div>
+          {navItems.map(item => (
+            <div key={item.id} className={`sidebar-item ${appView === item.id ? 'active' : ''}`} onClick={() => setAppView(item.id)}>
+              <i className={`ti ${item.icon}`} style={{ fontSize: '18px' }}></i> {item.label}
+            </div>
+          ))}
+          <div style={{ marginTop: 'auto', padding: '20px' }}>
+            <div className="text-sm flex align-center gap-2">
+              <div style={{ width: '8px', height: '8px', background: '#1D9E75', borderRadius: '50%' }}></div>
+              Role: <strong>{userRole}</strong>
+            </div>
+            <button className="btn btn-outline" style={{ width: '100%', marginTop: '16px', fontSize: '12px', padding: '6px' }} onClick={() => setRoute('landing')}>Sair</button>
+          </div>
+        </aside>
+        
+        <main className="main-content">
+          <div className="flex justify-between align-center" style={{ marginBottom: '32px' }}>
+            <div></div> {/* Spacer */}
+            <div className="flex align-center gap-4">
+              <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                <option value="fr">FR</option><option value="en">EN</option><option value="de">DE</option><option value="it">IT</option>
+              </select>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#333', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                U
+              </div>
+            </div>
+          </div>
+
+          {/* Router Interno da App */}
+          {appView === 'dashboard' && (
+            <div>
+              <h2 style={{ marginBottom: '24px' }}>{t('dashboard')}</h2>
+              <div className="grid-pricing" style={{ padding: 0, margin: '0 0 32px 0', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                <div className="card"><h3>{staff.length}</h3><p className="text-sm">Agentes</p></div>
+                <div className="card"><h3>1</h3><p className="text-sm">Pedidos Pendentes</p></div>
+                <div className="card"><h3>0</h3><p className="text-sm" style={{color: '#1D9E75'}}>Conflitos Atuais</p></div>
+                <div className="card"><h3>{rules.filter(r=>r.active).length}</h3><p className="text-sm">Regras Ativas</p></div>
+              </div>
+            </div>
+          )}
+          {appView === 'roster' && <RosterView />}
+          {appView === 'rules' && <RulesView />}
+          {appView === 'generate' && <GenerateView />}
+          {appView === 'requests' && <RequestsView />}
+          {appView === 'staff' && <StaffView />}
+
+        </main>
+      </div>
+    );
+  };
+
+  // --- RENDER PRINCIPAL ---
+  return (
+    <>
+      {route === 'landing' && <LandingPage />}
+      {route === 'pricing' && <PricingPage />}
+      {route === 'signup' && <SignupPage />}
+      {route === 'success' && <SuccessPage />}
+      {route === 'login' && <LoginPage />}
+      {route === 'app' && <AppLayout />}
+    </>
+  );
+}
